@@ -1,0 +1,56 @@
+name: Auto Sync with Upstream
+
+on:
+  schedule:
+    # 每天 UTC 09:00 运行（北京时间 17:00）
+    - cron: '0 9 * * *'
+  workflow_dispatch:  # 支持手动触发
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整历史
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+
+      - name: Sync with upstream
+        run: |
+          echo "Adding upstream remote..."
+          git remote add upstream https://github.com/anthropics/skills.git
+
+          echo "Fetching upstream changes..."
+          git fetch upstream
+
+          echo "Checking current status..."
+          CURRENT=$(git rev-parse HEAD)
+          UPSTREAM=$(git rev-parse upstream/main)
+
+          if [ "$CURRENT" = "$UPSTREAM" ]; then
+            echo "Already up to date. No sync needed."
+          else
+            echo "New updates available. Syncing..."
+            git checkout main
+            git merge upstream/main -m "Auto-sync: Merge upstream changes
+
+Synced on $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+
+            echo "Pushing to origin..."
+            git push origin main
+            echo "✅ Sync completed successfully!"
+          fi
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Time**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository**: Clearzero22/skills" >> $GITHUB_STEP_SUMMARY
